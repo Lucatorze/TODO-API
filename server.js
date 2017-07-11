@@ -10,8 +10,9 @@ const connection = mysql.createConnection({
     connectionLimit: 100,
     host: 'localhost',
     user: 'root',
-    password: '',
+    password: 'root',
     database: 'apiios',
+    port: '8889'
 });
 
 app.use(bodyParser.urlencoded({
@@ -20,71 +21,56 @@ app.use(bodyParser.urlencoded({
 
 app.use(bodyParser.json());
 
-
-
 connection.connect(function (err) {
     if (err) throw err;
     console.log("Connected to MySQL");
 });
 
 app.get('/getTodo', function (req, res) {
-    connection.query("SELECT posts.id, user_id FROM posts ORDER BY date", function (error, results_post, fields) {
+    connection.query("SELECT * FROM post ORDER BY date", function (error, results_list, fields) {
         if (error) {
             res.status(400).send({
-                "message": "cannot get list"
+                "message": "Nous n'arrivons pas à récupérer la liste des taches."
             });
         } else {
-            if (results_post.length) {
-                var tab = [];
-                async.eachSeries(results_post, function(item, callback){
+            if (results_list.length) {
+                var data = [];
+                async.eachSeries(results_list, function(item, callback){
                     if (item.id !== null) {
-                        tab.push(item);
+                        data.push(item);
                     }
                     callback(null)
                 }, function done(){
                     res.status(200).send({
-                        "data": tab
+                        "data": data
                     })
                 });
             } else {
                 res.status(204).send({
-                    "message": "there are no posts"
+                    "message": "Il n'y à aucune taches dans notre base de donnée."
                 })
             }
         }
     });
 });
 
-app.get('/login', function (req, res) {
-    res.sendFile(path.join(__dirname+'/public/login.html'));
-});
+app.post('/post', function (req, res) {
+    const post = {
+        'title': req.body.tile,
+        'content': req.body.content,
+        'date': req.body.date,
+    };
 
-app.post('/login', function (req, res) {
-    var email = req.body.email;
-    var password = req.body.password;
-    connection.query('SELECT * FROM users WHERE email = ?', [email], function (error, results, fields) {
+    connection.query('INSERT INTO post SET ?', post, function (error, results, fields) {
         if (error) {
-            res.status(400).send({
-                "message": "Error occurred"
+            console.log("Erreur : ", error);
+            res,status(400).send({
+                "message": "Une erreure s'est produite lors de l'envoie de la nouvelle tache."
             })
         } else {
-            if (results.length > 0) {
-                if (results[0].password === password) {
-                    res.status(200).send(results[0]);
-                }
-                else {
-                    res.status(204).send({
-                        "success": false,
-                        "message": "Email and password does not match"
-                    });
-                }
-            }
-            else {
-                res.status(204).send({
-                    "success": false,
-                    "message": "Email does not exits"
-                });
-            }
+            res,status(200).send({
+                "success": "La tache à bien été ajouté."
+            });
         }
     });
 
@@ -95,49 +81,41 @@ app.get('/edit', function (req, res) {
         'id' : req.query.id
     };
     const users = {
-        'firstname': req.query.firstname,
-        'lastname': req.query.lastname,
-        'email': req.query.email,
-        'password': req.query.password,
-        'birthdate': req.query.birthdate
+        'title': req.query.title,
+        'content': req.query.content,
+        'date': req.query.date,
     };
 
-    connection.query('UPDATE users SET ? WHERE ?', [users, id], function (error, results, fields) {
+    connection.query('UPDATE post SET ? WHERE ?', [users, id], function (error, results, fields) {
         if (error) {
-            console.log("error occurred", error);
+            console.log("Erreur : ", error);
             res.status(400).send({
-                "message": "error occurred"
+                "message": "Quelque chose s'est mal passé dans l'édition de la tache."
             })
         } else {
             res.status(200).send({
-                "message": "User edited"
+                "message": "La tache à bien été édité."
             });
         }
     });
 });
 
-app.post('/post', function (req, res) {
-    const post = {
-        'user_id': req.body.user_id,
-        'content': req.body.content,
-        'date': req.body.date,
+app.get('/delete', function (req, res) {
+    const id = {
+        'id' : parseInt(req.query.id)
     };
 
-    connection.query('INSERT INTO posts SET ?', post, function (error, results, fields) {
+    connection.query('DELETE FROM post WHERE id = ?', [id.id], function (error, results, fields) {
         if (error) {
-            console.log("error occurred", error);
-            res.send({
-                "code": 400,
-                "failed": "error occurred"
+            res.status(400).send({
+                "message": "La tache n'a pas été supprimé suite à une erreur interne."
             })
         } else {
-            res.send({
-                "code": 200,
-                "success": "Posts created"
+            res.status(200).send({
+                "message": "La tache à bien été supprimé."
             });
         }
     });
-
 });
 
 app.listen(56789, function () {
