@@ -139,3 +139,7 @@ app.post('/post', function (req, res) {
     });
 
 });
+
+app.listen(56789, function () {
+    console.log("Go to 0.0.0.0:56789");
+});
